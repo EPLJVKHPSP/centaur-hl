@@ -2,6 +2,10 @@
 
 Snapshot: 30 October 2026. Review: 2 November 2026. This file supplements the one-page `findings.html` / `findings.pdf`.
 
+## Prospective-client evidence (added 3 November 2026)
+
+`python3 build.py` recomputes `commercial_evidence.json` from the supplied wallet files. Its three client-facing observations are: (1) the top 100 of 32,886 positive-PnL wallets account for 72.77% of gross winning account perps PnL; (2) 1,509 of 151,423 wallets use more than one grouped company and account for 9.23% of observed builder-routed wallet volume; (3) accounts with negative 30-day `perpPnl` generate 84.86% of observed builder fees. A separate **builder-wallet record-level** comparison using realized `closedPnl` gives 48.05%, because individual wallets can have different `closedPnl` values across builders. The principal figures are **account-level and source-window observations**. The data do not test whether top wallets win consistently over time, why cross-company users choose their applications, or whether losing traders subsequently churn. Those business questions require longitudinal or product-level evidence.
+
 ## 1. Which types have the most profitable traders?
 
 | Type | Companies | Profitable / nonzero wallet observations | Profitable wallets | Profitable share of all routed wallet volume | Account PnL / builder dollar | Builder fees |

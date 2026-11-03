@@ -61,6 +61,71 @@ def group(builders,profiles):
     for b in builders:ans[key(profiles[b['address'].lower()]['info'],b['address'])].append(b)
     return ans
 
+def commercial_evidence(wallets, builder_companies, companies, snapshot):
+    """Aggregate three client-facing findings from wallet-level source records."""
+    winners=[];multi_company_wallets=0;multi_company_volume=0;multi_company_fees=0
+    routed_volume=0;wallet_fees=0;fees_by_pnl=collections.defaultdict(float)
+    fees_by_closed_pnl=collections.defaultdict(float);multi_company_counts=collections.Counter()
+    pnl_conflicts=0;closed_pnl_conflicts=0
+
+    def outcome(value):
+        if value is None:return 'missing'
+        if value>0:return 'positive'
+        if value<0:return 'negative'
+        return 'zero'
+
+    for observations in wallets.values():
+        values={o['pnl'] for o in observations if o['pnl'] is not None}
+        closed_values={o['closed_pnl'] for o in observations if o['closed_pnl'] is not None}
+        if len(values)>1:pnl_conflicts+=1
+        if len(closed_values)>1:closed_pnl_conflicts+=1
+        pnl=next(iter(values)) if len(values)==1 else None
+        total_volume=sum(o['volume'] for o in observations)
+        total_fees=sum(o['fee'] for o in observations)
+        routed_volume+=total_volume;wallet_fees+=total_fees
+        fees_by_pnl[outcome(pnl)]+=total_fees
+        for observation in observations:
+            fees_by_closed_pnl[outcome(observation['closed_pnl'])]+=observation['fee']
+        if pnl is not None and pnl>0:winners.append(pnl)
+        count=len({builder_companies[o['builder']] for o in observations})
+        if count>1:
+            multi_company_wallets+=1;multi_company_volume+=total_volume;multi_company_fees+=total_fees
+            multi_company_counts[count]+=1
+
+    gross_gains=sum(winners)
+    top100_gains=sum(sorted(winners,reverse=True)[:100])
+    evidence=dict(
+        snapshot=snapshot,period='30d',selected_companies=len(companies),
+        selection='Named builder codes with more than $1m 30-day volume, grouped by shared X account',
+        pnl_metric='Account-wide perpPnl for each unique wallet (not PnL attributable to builder-routed trades)',
+        unique_wallets=len(wallets),winning_accounts=len(winners),
+        gross_positive_wallet_pnl_usd=gross_gains,
+        top100_positive_wallet_pnl_usd=top100_gains,
+        top100_share_gross_gains=div(top100_gains,gross_gains),
+        multi_company_wallets=multi_company_wallets,
+        multi_company_wallet_share=div(multi_company_wallets,len(wallets)),
+        multi_company_routed_volume_usd=multi_company_volume,
+        observed_routed_volume_usd=routed_volume,
+        multi_company_volume_share=div(multi_company_volume,routed_volume),
+        multi_company_fee_share=div(multi_company_fees,wallet_fees),
+        multi_company_distribution=dict(sorted(multi_company_counts.items())),
+        wallet_fee_sum=wallet_fees,
+        losing_wallet_fees_usd=fees_by_pnl['negative'],
+        losing_wallet_fee_share=div(fees_by_pnl['negative'],wallet_fees),
+        winning_wallet_fee_share=div(fees_by_pnl['positive'],wallet_fees),
+        zero_or_missing_wallet_fee_share=div(fees_by_pnl['zero']+fees_by_pnl['missing'],wallet_fees),
+        losing_wallet_fee_share_by_closed_pnl=div(fees_by_closed_pnl['negative'],wallet_fees),
+        closed_pnl_comparison='Builder-wallet record-level closedPnl classifications, fee weighted; the same wallet can have different closedPnl values across builders',
+        conflicting_wallet_pnls=pnl_conflicts,
+        conflicting_closed_pnl_wallets=closed_pnl_conflicts,
+        limitations=[
+            'Top-100 gains are account-wide, deduplicated per wallet; this does not measure persistent profitability.',
+            'Multi-company means distinct grouped companies, not merely several builder codes. The data does not reveal why traders chose each product.',
+            'Losing wallets have negative 30-day account perpPnl. The realized closedPnl comparison uses each builder-wallet record because closedPnl can differ across builders.',
+            'One 30-day wallet snapshot cannot determine whether losing users subsequently leave or keep paying fees.'
+        ])
+    return evidence
+
 def labels_load(path=None):
     """Read one company per row, preserving evidence for every classification."""
     ans={}
@@ -131,7 +196,8 @@ def analyze(data_dir):
             seen.add(wid);missing+=pnl is None;zero+=pnl==0
             if pnl is not None and pv is not None and abs(pv-pnl)>.01:total_pnl_diff+=1
             vol+=v;fees+=num(w.get('builderFee')) or 0
-            all_wallet[wid].append(dict(builder=addr,pnl=pnl,volume=v))
+            all_wallet[wid].append(dict(builder=addr,pnl=pnl,closed_pnl=num(w.get('closedPnl')),
+                                        volume=v,fee=num(w.get('builderFee')) or 0))
         builder_stats[addr]=dict(code=b['refCode'],leaderboard_volume=num(b['volume']),wallet_volume=vol,leaderboard_users=b['users'],wallet_rows=len(wallets[addr]),leaderboard_revenue=num(b['revenue']),wallet_fees=fees,volume_diff_pct=div(vol-num(b['volume']),num(b['volume'])),fees_diff_pct=div(fees-num(b['revenue']),num(b['revenue'])))
     results=[];company_pnl_conflicts=0
     for cid,members in group(builders,profiles).items():
@@ -196,6 +262,8 @@ def analyze(data_dir):
        wallet_count_discrepancies=[dict(code=s['code'],leaderboard=s['leaderboard_users'],wallet_rows=s['wallet_rows']) for s in builder_stats.values() if s['leaderboard_users']!=s['wallet_rows']],
        classification_top30=sum(c['type'] in TYPES for c in results[:30]),top30_unclassified=[c['name'] for c in results[:30] if c['type']=='Unclassified'],
        limitations=['Account-wide perpPnl appears identically across builder files','Cross-company wallets make summed company PnL non-unique','Leaderboard and wallet files have different snapshot/aggregation timing','Wallet-level volume covers only observed selected builders','Product type does not demonstrate causation','Top-10 exclusion adjusts volume using routed wallet volume, an approximation'])
+    builder_companies={b['address'].lower():cid for cid,members in group(builders,profiles).items() for b in members}
+    validation['commercial_evidence']=commercial_evidence(all_wallet,builder_companies,results,pack_info.get('data_as_of'))
     return results,validation,top
 
 def types_aggregate(rows):
@@ -282,6 +350,7 @@ def main():
     (ROOT/'dashboard.html').write_text(template.replace('/*__DATA__*/','const DATA = '+payload+';'))
     (ROOT/'findings.html').write_text(findings(rows,val,types,ins))
     (ROOT/'validation.json').write_text(json.dumps(val,indent=2,ensure_ascii=False,allow_nan=False))
+    (ROOT/'commercial_evidence.json').write_text(json.dumps(val['commercial_evidence'],indent=2,ensure_ascii=False,allow_nan=False))
     fields=['rank','company_id','name','builder_codes','type','confidence','form_factor','product_tags','volume','wallets','valid_pnl_wallets','nonzero_pnl_wallets','winning_wallets','missing_pnl_wallets','zero_pnl_wallets','pct_profitable','pct_profitable_by_volume','pct_profitable_by_nonzero_volume','missing_pnl_volume_share','excluded_volume_share','gross_positive_wallet_pnl','gross_negative_wallet_pnl','net_pnl','median_pnl','pnl_per_dollar','top10_concentration','revenue','revenue_bps','revenue_vs_abs_net_pnl','wallet_volume_delta_pct','wallet_fee_delta_pct','routed_wallet_volume']
     def csv_value(company,field):
         if field=='builder_codes':return ' | '.join(company['builder_codes'])

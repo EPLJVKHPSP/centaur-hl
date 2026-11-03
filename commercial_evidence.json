@@ -1,0 +1,39 @@
+{
+  "snapshot": "2026-10-30",
+  "period": "30d",
+  "selected_companies": 122,
+  "selection": "Named builder codes with more than $1m 30-day volume, grouped by shared X account",
+  "pnl_metric": "Account-wide perpPnl for each unique wallet (not PnL attributable to builder-routed trades)",
+  "unique_wallets": 151423,
+  "winning_accounts": 32886,
+  "gross_positive_wallet_pnl_usd": 34540079.805121,
+  "top100_positive_wallet_pnl_usd": 25133934.915406,
+  "top100_share_gross_gains": 0.7276744888029929,
+  "multi_company_wallets": 1509,
+  "multi_company_wallet_share": 0.009965460993376172,
+  "multi_company_routed_volume_usd": 2439786351.1159925,
+  "observed_routed_volume_usd": 26426351018.467575,
+  "multi_company_volume_share": 0.0923239969608741,
+  "multi_company_fee_share": 0.045070309122212354,
+  "multi_company_distribution": {
+    "2": 1386,
+    "3": 103,
+    "4": 16,
+    "5": 4
+  },
+  "wallet_fee_sum": 10332916.816424323,
+  "losing_wallet_fees_usd": 8768252.48170915,
+  "losing_wallet_fee_share": 0.8485747671724101,
+  "winning_wallet_fee_share": 0.15069190070483385,
+  "zero_or_missing_wallet_fee_share": 0.0007333321227608769,
+  "losing_wallet_fee_share_by_closed_pnl": 0.4804550229624349,
+  "closed_pnl_comparison": "Builder-wallet record-level closedPnl classifications, fee weighted; the same wallet can have different closedPnl values across builders",
+  "conflicting_wallet_pnls": 0,
+  "conflicting_closed_pnl_wallets": 2006,
+  "limitations": [
+    "Top-100 gains are account-wide, deduplicated per wallet; this does not measure persistent profitability.",
+    "Multi-company means distinct grouped companies, not merely several builder codes. The data does not reveal why traders chose each product.",
+    "Losing wallets have negative 30-day account perpPnl. The realized closedPnl comparison uses each builder-wallet record because closedPnl can differ across builders.",
+    "One 30-day wallet snapshot cannot determine whether losing users subsequently leave or keep paying fees."
+  ]
+}

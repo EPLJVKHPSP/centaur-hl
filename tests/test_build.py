@@ -1,11 +1,31 @@
 import unittest,sys,json,collections,tempfile,csv,statistics,math
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from build import metric,exclusion,key,group,analyze,types_aggregate,findings,default_data_dir,DEFAULT_DATASET_DIR,ROOT,labels_load,sign_flips,TYPES,FORM_FACTORS,PRODUCT_TAGS,LABEL_FIELDS
+from build import metric,exclusion,key,group,analyze,types_aggregate,findings,commercial_evidence,default_data_dir,DEFAULT_DATASET_DIR,ROOT,labels_load,sign_flips,TYPES,FORM_FACTORS,PRODUCT_TAGS,LABEL_FIELDS
 from volume_audit import audit_fills, choose_sample, collect_pages, summarize, sha, parse_date
 DATA=ROOT/DEFAULT_DATASET_DIR
 
 class CalculationTests(unittest.TestCase):
+ def test_commercial_evidence_deduplicates_wallets_and_companies(self):
+  def observation(builder,pnl,closed_pnl,volume,fee):
+   return dict(builder=builder,pnl=pnl,closed_pnl=closed_pnl,volume=volume,fee=fee)
+  wallets={
+   'winner':[observation('a',100,-5,100,10),observation('b',100,5,200,20)],
+   'loser':[observation('a',-20,-10,50,5),observation('c',-20,-10,150,15)],
+   'zero':[observation('c',0,0,10,1)],
+   'unknown':[observation('c',None,None,20,2)],
+  }
+  evidence=commercial_evidence(wallets,{'a':'one','b':'one','c':'two'},[], '2026-10-30')
+  self.assertEqual((evidence['unique_wallets'],evidence['winning_accounts'],evidence['multi_company_wallets']),(4,1,1))
+  self.assertEqual(evidence['top100_positive_wallet_pnl_usd'],100)
+  self.assertEqual(evidence['top100_share_gross_gains'],1)
+  self.assertEqual(evidence['multi_company_routed_volume_usd'],200)
+  self.assertAlmostEqual(evidence['multi_company_volume_share'],200/530)
+  self.assertAlmostEqual(evidence['losing_wallet_fee_share'],20/53)
+  self.assertAlmostEqual(evidence['losing_wallet_fee_share_by_closed_pnl'],30/53)
+  self.assertEqual(evidence['conflicting_closed_pnl_wallets'],1)
+  self.assertEqual(evidence['multi_company_distribution'],{2:1})
+
  def test_labels_csv_has_separate_readable_columns(self):
   with (ROOT/'labels.csv').open(newline='',encoding='utf-8') as fh:
    reader=csv.DictReader(fh);rows=list(reader)
@@ -144,6 +164,20 @@ class CalculationTests(unittest.TestCase):
 class OriginalDatasetChecks(unittest.TestCase):
  @classmethod
  def setUpClass(cls):cls.rows,cls.validation,_=analyze(DATA)
+ def test_three_client_findings_are_recomputed_from_source(self):
+  evidence=self.validation['commercial_evidence']
+  self.assertEqual(evidence['unique_wallets'],151423)
+  self.assertEqual(evidence['winning_accounts'],32886)
+  self.assertAlmostEqual(evidence['gross_positive_wallet_pnl_usd'],34540079.805121,places=4)
+  self.assertAlmostEqual(evidence['top100_positive_wallet_pnl_usd'],25133934.92,places=2)
+  self.assertAlmostEqual(evidence['top100_share_gross_gains'],0.7276744888029929,places=12)
+  self.assertEqual(evidence['multi_company_wallets'],1509)
+  self.assertAlmostEqual(evidence['multi_company_wallet_share'],0.009965460993376172,places=12)
+  self.assertAlmostEqual(evidence['multi_company_volume_share'],0.09232399696087344,places=12)
+  self.assertAlmostEqual(evidence['losing_wallet_fee_share'],0.8485747671724055,places=12)
+  self.assertAlmostEqual(evidence['losing_wallet_fee_share_by_closed_pnl'],0.48045502296243264,places=12)
+  self.assertEqual(evidence['conflicting_wallet_pnls'],0)
+  self.assertIn('cannot determine',evidence['limitations'][-1])
  def test_expected_selection_and_merges(self):
   self.assertEqual((self.validation['selected_builders'],len(self.rows)),(125,122))
   groups={c['name']:c for c in self.rows}

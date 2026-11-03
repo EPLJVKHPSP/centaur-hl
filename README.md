@@ -12,13 +12,13 @@ Use Python 3.10 or newer; the core build needs only its standard library. Keep t
 python3 build.py
 ```
 
-This regenerates the dashboard (including the type aggregates), HTML findings, company metrics and validation from the data pack and `labels.csv`. It also embeds the saved aggregate historical API comparison if present. For a different data location:
+This regenerates the dashboard (including the type aggregates), HTML findings, company metrics, validation and `commercial_evidence.json` from the data pack and `labels.csv`. It also embeds the saved aggregate historical API comparison if present. For a different data location:
 
 ```bash
 python3 build.py --data-dir /path/to/datasets
 ```
 
-The supplied pack remains private. The submission archive excludes `datasets/`, `.cache/`, individual wallet records and API responses. The recipient needs their original data pack to rerun the calculation. No website has been published.
+The supplied pack remains private. The private GitHub repository excludes `datasets/`, `.cache/`, individual wallet records and API responses. The recipient needs their original data pack to rerun the calculation. No website has been published.
 
 ## What is included
 
@@ -34,6 +34,7 @@ The supplied pack remains private. The submission archive excludes `datasets/`, 
 | `make_labels.py` | Recorded evidence seed; regenerates `labels.csv` and overwrites CSV-only edits |
 | `volume_audit.py`, `volume_comparison.json` | Sampled historical routing comparison and cached aggregate result |
 | `validation.json` | Reconciliations, shared-wallet checks and unique-account totals; type aggregates are embedded in the dashboard |
+| `commercial_evidence.json` | Reproducible numerators, denominators, definitions and limitations behind the three prospective-client findings |
 | `tests/test_build.py` | Independent metric and edge-case tests |
 
 Open **`labels.csv`** for the complete top-30 classification table. The first columns show company rank/name, **type**, **form_factor**, and **product_tags** separately. Each row also preserves the type and form-factor evidence URLs, text and confidence. Product-tag research was **AI-assisted and then reviewed against the source evidence and inclusion rules**, with manual judgment on ambiguous decisions. The assignment says **“any product tags”**, so zero tags are allowed: 24 companies have at least one verified tag, while six (including Liquid) retain empty cells rather than unsupported guesses. The `tag_evidence` cell is a JSON list of sources and reasons for positive tags. The `tag_review` cell contains **all 10 tag decisions per company (300 total)**, with a source, explanation and one of three statuses: `Verified`, `No qualifying feature found`, or `Insufficient evidence`. The second status means a feature was not identified in the inspected material, *not* proof of absence; the third flags weaker or inaccessible evidence. Form factor `both` means usable mobile and desktop/web experiences. On 2 November the user explicitly reviewed and agreed to the four targeted evidence judgments documented in `label_rules.md`. `python3 make_labels.py` regenerates this file from the reviewed research seed and overwrites edits made only in the CSV. It does not call an LLM at build time.
@@ -45,6 +46,16 @@ Named builders with strictly more than $1m of 30d volume; builder codes sharing 
 Profitable wallets = positive / (positive + negative) valid PnLs. **Profitable volume = winning wallets' routed volume / all observed routed wallet volume**, including volume with zero or missing PnL. Missing PnL remains unknown; its volume share is exposed separately. The old conditional nonzero-volume rate is retained under the explicit alternate name `pct_profitable_by_nonzero_volume`.
 
 Wallet PnL covers an account, not a builder execution route. Cross-company sums repeat some accounts; population gains/losses use one PnL per unique wallet. Type comparisons are descriptive and depend on classification choices. See `RESEARCH.md` for the limits.
+
+## Three findings for prospective clients
+
+The 30 October snapshot supports these three descriptive observations. Run `python3 build.py` to regenerate their source-backed figures in `commercial_evidence.json`.
+
+- **Profit concentration:** 100 wallets account for **72.77% of gross positive account perps PnL** ($25.134m of $34.540m across 32,886 winning wallets). This supports looking beyond headline PnL when featuring traders; consistent performance over time has not been measured.
+- **Cross-company activity:** 1,509 of 151,423 wallets (**0.997%**) traded through more than one of the 122 grouped companies, generating **9.23%** of observed routed wallet volume ($2.440bn of $26.426bn). This identifies an unusually active cohort, but does not show why they chose particular products.
+- **Fees from losing accounts:** Wallets with negative 30-day account `perpPnl` paid **84.86%** of observed builder fees ($8.768m of $10.333m). Using each builder-wallet record's realized `closedPnl` instead gives **48.05%**, a record-level sensitivity check because 2,006 wallets have differing `closedPnl` values across builder records. The 30-day snapshot cannot show whether these traders stop trading after losses. Follow-up wallet-level observations are needed to analyze churn and revenue sustainability.
+
+These figures use all eligible named builder codes over $1m of 30-day volume. Wallet addresses are deduplicated for PnL, builder fees and routed volume are summed across observed codes, and codes sharing an X account are grouped into one company. The report contains aggregate counts and amounts, with no wallet addresses.
 
 ## Historical API comparison
 
@@ -65,8 +76,8 @@ A fresh machine without the cache can query the public API with `python3 volume_
 python3 -m unittest discover -s tests -v
 ```
 
-The 20 Python tests independently recompute all eight required metrics for 122 companies (976 company-metric comparisons) and cover missing/zero PnL, company grouping, exclusions, taxonomy, page boundaries, timezones and volume-decile membership. Checks confirmed 125 eligible builder codes and three company merges. AI-operated Chromium inspections used 1440px, 390px and 320px viewports to check sorting, filters, search, detail panels, confidence labels, axes and offline layout; the embedded JavaScript passed a syntax check. The A4 PDF was visually checked to be one page. The optional source-link checker reached 67/67 distinct URLs at the time of inspection; reachability alone cannot validate product claims.
+The 22 Python tests independently recompute all eight required metrics for 122 companies (976 company-metric comparisons), verify the three prospective-client figures, and cover missing/zero PnL, company grouping, exclusions, taxonomy, page boundaries, timezones and volume-decile membership. Checks confirmed 125 eligible builder codes and three company merges. AI-operated Chromium inspections used 1440px, 390px and 320px viewports to check sorting, filters, search, detail panels, confidence labels, axes and offline layout; the embedded JavaScript passed a syntax check. The A4 PDF was visually checked to be one page. The optional source-link checker reached 67/67 distinct URLs at the time of inspection; reachability alone cannot validate product claims.
 
 **Human inspection and decisions:** I inspected the outputs while developing the assignment, raised questions about the results and formatting, and checked that the requested metrics, four questions, labels, dashboard and findings note were addressed. I personally settled four ambiguous primary types, confirmed mobile availability for Axiom and Outcome, requested a single clearly structured `labels.csv`, and reviewed and approved four targeted evidence/confidence decisions on 2 November. These were focused reviews and analytical judgments; the automated calculations, browser runs, link checks and print tests were executed with AI assistance. See `AI_LOG.md` for the division of work and `RESEARCH.md` for the traps that remain.
 
-The original source-link audit and historical form-factor research are kept locally under `research_evidence/`, outside the 16-file submission. Final classification data and evidence are in `labels.csv` and `label_rules.md`.
+The original source-link audit and historical form-factor research are kept locally under `research_evidence/`, outside the GitHub submission. Final classification data and evidence are in `labels.csv` and `label_rules.md`.
