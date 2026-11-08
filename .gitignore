@@ -1,9 +1,9 @@
-datasets/
-.cache/
-research_evidence/
-__pycache__/
-*.pyc
-*.zip
-.DS_Store
+# Do not upload Centaur-derived offline observations, credentials, or local results.
+data/
+results.json
 .env
 .env.*
+__pycache__/
+*.pyc
+.DS_Store
+*.zip

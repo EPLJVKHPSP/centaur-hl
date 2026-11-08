@@ -1,83 +1,46 @@
-# Hyperliquid builder profitability
+# Centaur strategy — first verified public LONG after a 24h dip
 
-Open `dashboard.html` to see the completed interactive dashboard, including the scatter chart and three caveated findings at the top. It works offline on a laptop or phone. `dashboard_template.html` is the source layout; opening it redirects to `dashboard.html` in the same folder. `findings.html` is the one-page findings note; `findings.pdf` is its checked A4 print export. `RESEARCH.md` contains the methods and full answers to all four questions.
+**Presentation:** `graphics/dip_signal_infographic.png` is the 1600 × 900 Centaur-style X graphic. Its reproducible generator is `graphics/render_infographic.py` (requires Pillow), and `graphics/post_copy.md` contains a proposed X caption plus the explanatory methodology note. The graphic is a draft for review, **not submitted**.
 
-Metrics cover 122 companies, while the assignment's product-type research covers the top 30 by volume. All top 30 have one of the five required types. The other 92 are marked **Not researched (outside top 30)** in the dashboard. The underlying generated CSV uses `Unclassified` as a missing-label value; it is not a sixth type.
+**Rule:** Follow a source-verified public altcoin LONG opening call when the *same trader* has had no accepted LONG opening call for that coin in the preceding seven days, and the coin's publicly observable 24h spot price change is negative. Buy at the **next Binance spot hourly open** after the public call, then sell **24 hours after entry**. Charge an illustrative **0.30 percentage-point round-trip cost** to both the signal and market comparison. Only accept the first such signal per coin in each 24-hour holding period.
 
-## Reproduce
+**Timing is critical:** At a 12:34 UTC publication, we assess the dip using the **12:00 hourly open versus the previous day's 12:00 open**, then simulate buying at **13:00**. The 13:00 price must not decide whether to trade or which peers qualify. This was corrected during the November 8 audit; figures from the earlier version of this backtest should be discarded.
 
-Use Python 3.10 or newer; the core build needs only its standard library. Keep the original data pack under `datasets/`, with plain JSON wallet files as described in `datasets/DATA_README.md`:
+## Run (Python 3; offline)
 
-```bash
-python3 build.py
-```
-
-This regenerates the dashboard (including the type aggregates), HTML findings, company metrics, validation and `commercial_evidence.json` from the data pack and `labels.csv`. It also embeds the saved aggregate historical API comparison if present. For a different data location:
+This `x-assignment` branch contains the backtesting code, tests, methodology, and X graphic. The **private Centaur-derived input data are intentionally excluded from Git**, including from this private GitHub repository. To reproduce the reported numerical findings, restore the two local files from the original analysis folder:
 
 ```bash
-python3 build.py --data-dir /path/to/datasets
+git switch x-assignment
+mkdir -p data
+cp ~/Desktop/centaur-strategy/data/observations.json data/
+cp ~/Desktop/centaur-strategy/data/spot_hourly.json data/
+python3 -m unittest -q test_backtest.py
+python3 backtest.py
 ```
 
-The supplied pack remains private. The private GitHub repository excludes `datasets/`, `.cache/`, individual wallet records and API responses. The recipient needs their original data pack to rerun the calculation. No website has been published.
+The input files are `data/observations.json` (812 previously verified Centaur public observations) and `data/spot_hourly.json` (35 Binance spot hourly asset series). You need authorized copies of both inputs to reproduce the historical numbers; the two `cp` commands above work on the original analysis Mac. The script writes `results.json` locally. Once inputs are present, the backtest needs no API key, network connection or external Python libraries. Alternative paths can be provided using `--observations` and `--prices`.
 
-## What is included
+The tests that use synthetic fixtures work even when private datasets are absent; three frozen-dataset regression tests are explicitly skipped until both files are supplied. The X graphic is included; regenerating it requires `results.json` and Pillow.
 
-| File | Purpose |
-|---|---|
-| `dashboard.html` | Selectable scatter, sortable/searchable company leaderboard, labels, evidence, stress tests and three findings |
-| `findings.html`, `findings.pdf` | Three surprising results first, followed by type comparison and what to distrust; one printed page |
-| `company_metrics.csv` | All eight required metrics for 122 companies, plus fees and coverage checks |
-| `labels.csv`, `label_rules.md` | One row per top-30 company, with distinct type, form factor and product tags columns, sources, confidence and classification rules |
-| `RESEARCH.md` | Four answers, denominators, source traps and attribution limits |
-| `AI_LOG.md` | Short account of prompts, AI work and checks, with human decisions clearly distinguished |
-| `build.py`, `dashboard_template.html` | Offline calculation and presentation source |
-| `make_labels.py` | Recorded evidence seed; regenerates `labels.csv` and overwrites CSV-only edits |
-| `volume_audit.py`, `volume_comparison.json` | Sampled historical routing comparison and cached aggregate result |
-| `validation.json` | Reconciliations, shared-wallet checks and unique-account totals; type aggregates are embedded in the dashboard |
-| `commercial_evidence.json` | Reproducible numerators, denominators, definitions and limitations behind the three prospective-client findings |
-| `tests/test_build.py` | Independent metric and edge-case tests |
+## Reproducible results (November 8, 2026 audit)
 
-Open **`labels.csv`** for the complete top-30 classification table. The first columns show company rank/name, **type**, **form_factor**, and **product_tags** separately. Each row also preserves the type and form-factor evidence URLs, text and confidence. Product-tag research was **AI-assisted and then reviewed against the source evidence and inclusion rules**, with manual judgment on ambiguous decisions. The assignment says **“any product tags”**, so zero tags are allowed: 24 companies have at least one verified tag, while six (including Liquid) retain empty cells rather than unsupported guesses. The `tag_evidence` cell is a JSON list of sources and reasons for positive tags. The `tag_review` cell contains **all 10 tag decisions per company (300 total)**, with a source, explanation and one of three statuses: `Verified`, `No qualifying feature found`, or `Insufficient evidence`. The second status means a feature was not identified in the inspected material, *not* proof of absence; the third flags weaker or inaccessible evidence. Form factor `both` means usable mobile and desktop/web experiences. On 2 November the user explicitly reviewed and agreed to the four targeted evidence judgments documented in `label_rules.md`. `python3 make_labels.py` regenerates this file from the reviewed research seed and overwrites edits made only in the CSV. It does not call an LLM at build time.
+| Publication period (UTC) | Three-peer matched calls | Mean hypothetical net return | Same-hour three-dip-peer mean | Difference, percentage points |
+| --- | ---: | ---: | ---: | ---: |
+| Aug 1–Oct 24 | **97** (of 98 non-overlapping signals) | **+1.515%** | **+0.535%** | **+0.980 pp** |
+| Oct 25–Nov 6 | **17** | **+3.700%** | **+1.006%** | **+2.693 pp** |
 
-## Calculation choices
+For the first period, the *median* advantage against peers is **−0.015 pp**, and only **49.5%** beat their peer basket. Removing the five trades with the largest absolute excess returns reduces the mean advantage to **+0.392 pp**. For the later period, the median is **+1.307 pp**, and removing those five reduces the mean from +2.693 to **+1.068 pp**. The later period has only 17 signals, and **both periods were examined during strategy discovery**; neither is a clean out-of-sample test.
 
-Named builders with strictly more than $1m of 30d volume; builder codes sharing an X account are grouped. Volume and fees come from the leaderboard. Wallet count, net/median PnL and concentration use wallets deduplicated within the company. Only `perpPnl` is used.
+A tougher retrospective comparison uses **three earlier dip entries in the *same coin***, with a similar direction of the preceding BTC price move and without an observed recent Centaur opening call in our cached sample. After correcting the post-time precision in this control, it finds **+0.829 pp** excess in 92 earlier-period matches (date-cluster bootstrap interval **−0.929 to +2.653 pp**) and **+2.096 pp** in 16 later matches (interval **−0.483 to +4.110 pp**). Both intervals include zero. Historical controls may differ in news and market conditions; they cannot establish causality.
 
-Profitable wallets = positive / (positive + negative) valid PnLs. **Profitable volume = winning wallets' routed volume / all observed routed wallet volume**, including volume with zero or missing PnL. Missing PnL remains unknown; its volume share is exposed separately. The old conditional nonzero-volume rate is retained under the explicit alternate name `pct_profitable_by_nonzero_volume`.
+An additional one-hour execution delay reduces the three-peer relative advantage to **+0.935 pp** (97 matched) and **+1.937 pp** (17 matched). At three hours, it is **+0.782 pp** and **+1.586 pp**. The full 0–3h sensitivity, 1/3/5-peer matches, concentration, fees, direct dip-vs-rise comparison and historical controls are reproducible in `results.json`.
 
-Wallet PnL covers an account, not a builder execution route. Cross-company sums repeat some accounts; population gains/losses use one PnL per unique wallet. Type comparisons are descriptive and depend on classification choices. See `RESEARCH.md` for the limits.
+## Audit and limitations
 
-## Three findings for prospective clients
+- **Checked:** All 812 cached calls' hourly timestamp ordering, stored 24h PnL arithmetic and source-feature consistency against raw price panels; duplicate detection; positivity, finite values, hourly alignment and continuity of the 35 series. All seven-day freshness flags agree with the preceding accepted same-trader/coin/direction calls **within this cached sample** (including all 178 `fresh=false` rows). Independently spot-checked Binance opening prices over the network for 12 asset pairs; all matched cached data. Independently recomputed the 3-peer strategy directly from the input JSON, reproducing both sample sizes and all reported primary means. Added tests for publication-time information, seven-day freshness consistency, tie-breaking, 24h overlap across the period boundary, missing peer outcomes, prior-only controls, BTC matching, price corruption and the fixed-dataset results.
+- **Fixed:** The old filter and peer selection used the *future entry-open price* as though available when the public signal appeared. The selection and all controls now use the previous known hourly open. A same-hour conflict now selects the **earliest actual publication**, rather than the lowest trader ID. The coin cooldown now applies across the earlier/recent boundary. Missing future peer prices cannot cause the ranking to switch to a more convenient peer. Another control-only bug rounded all public timestamps forward to entry hours before checking if a control had a recent post; using the exact public post timestamp changes the 14-day historical control sample from **91 to 92** earlier matches and its reported excess from **+0.861 to +0.829 pp**, and changes the later excess from **+2.237 to +2.096 pp** (16 matches). The primary three-peer strategy numbers are unaffected.
+- **Still uncertain:** The offline observations were built upstream from Centaur's public-post/event verification, but the raw source messages are **not included**, so their original publication times cannot be independently authenticated from this folder alone. Our 812 fully priced observations are a restricted sample, and earlier unseen posts could affect a no-prior-call control and a seven-day freshness flag. Although the earlier window is labelled August 1–October 24, the earliest cached observation is **August 10**. The source's 24h duplicate suppression applies before its seven-day freshness rule. Publication dates define the periods; the bootstrap clusters by **entry UTC date**. The 35 spot assets are a fixed, selected universe, not every Hyperliquid coin.
+- **Trading realism:** Simulated Binance spot open prices are not actual fills or Hyperliquid perps returns. Costs are illustrative (no measured funding, latency, spreads or market impact). Multiple simultaneous coin positions are treated as equal-weight individual trades, not a capital-constrained portfolio. Results may be driven by a few large winners or market moves. They do **not** establish profitable live copy trading or an incremental signal edge over buying dips.
 
-The 30 October snapshot supports these three descriptive observations. Run `python3 build.py` to regenerate their source-backed figures in `commercial_evidence.json`.
-
-- **Profit concentration:** 100 wallets account for **72.77% of gross positive account perps PnL** ($25.134m of $34.540m across 32,886 winning wallets). This supports looking beyond headline PnL when featuring traders; consistent performance over time has not been measured.
-- **Cross-company activity:** 1,509 of 151,423 wallets (**0.997%**) traded through more than one of the 122 grouped companies, generating **9.23%** of observed routed wallet volume ($2.440bn of $26.426bn). This identifies an unusually active cohort, but does not show why they chose particular products.
-- **Fees from losing accounts:** Wallets with negative 30-day account `perpPnl` paid **84.86%** of observed builder fees ($8.768m of $10.333m). Using each builder-wallet record's realized `closedPnl` instead gives **48.05%**, a record-level sensitivity check because 2,006 wallets have differing `closedPnl` values across builder records. The 30-day snapshot cannot show whether these traders stop trading after losses. Follow-up wallet-level observations are needed to analyze churn and revenue sustainability.
-
-These figures use all eligible named builder codes over $1m of 30-day volume. Wallet addresses are deduplicated for PnL, builder fees and routed volume are summed across observed codes, and codes sharing an X account are grouped into one company. The report contains aggregate counts and amounts, with no wallet addresses.
-
-## Historical API comparison
-
-The saved comparison summarizes 204 sampled wallets: 196 usable returned histories, five source-volume inconsistencies and three empty histories. It is not a population estimate or proof of complete history. Public API history limits, quote currencies and source timing prevent exact ledger reconciliation.
-
-To summarize the private cache again, then rebuild:
-
-```bash
-python3 volume_audit.py
-python3 build.py
-```
-
-A fresh machine without the cache can query the public API with `python3 volume_audit.py --fetch --workers 1`. The script samples, caches and paginates; later API availability can change the result. The normal build uses the included aggregate JSON and does not contact the API. The checked PDF is a print export; printing regenerated `findings.html` with A4 paper and CSS margins refreshes it.
-
-## Verify
-
-```bash
-python3 -m unittest discover -s tests -v
-```
-
-The 22 Python tests independently recompute all eight required metrics for 122 companies (976 company-metric comparisons), verify the three prospective-client figures, and cover missing/zero PnL, company grouping, exclusions, taxonomy, page boundaries, timezones and volume-decile membership. Checks confirmed 125 eligible builder codes and three company merges. AI-operated Chromium inspections used 1440px, 390px and 320px viewports to check sorting, filters, search, detail panels, confidence labels, axes and offline layout; the embedded JavaScript passed a syntax check. The A4 PDF was visually checked to be one page. The optional source-link checker reached 67/67 distinct URLs at the time of inspection; reachability alone cannot validate product claims.
-
-**Human inspection and decisions:** I inspected the outputs while developing the assignment, raised questions about the results and formatting, and checked that the requested metrics, four questions, labels, dashboard and findings note were addressed. I personally settled four ambiguous primary types, confirmed mobile availability for Axiom and Outcome, requested a single clearly structured `labels.csv`, and reviewed and approved four targeted evidence/confidence decisions on 2 November. These were focused reviews and analytical judgments; the automated calculations, browser runs, link checks and print tests were executed with AI assistance. See `AI_LOG.md` for the division of work and `RESEARCH.md` for the traps that remain.
-
-The original source-link audit and historical form-factor research are kept locally under `research_evidence/`, outside the GitHub submission. Final classification data and evidence are in `labels.csv` and `label_rules.md`.
+This branch contains the backtest, tests, documentation and X draft graphic. The input data and regenerated `results.json` remain private local files, excluded by `.gitignore`. The larger multi-strategy exploration remains in the separate local `centaur-ideas-analysis` project. Confirm redistribution rights before sharing Centaur-derived raw inputs.
